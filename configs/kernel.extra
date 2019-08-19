@@ -1,0 +1,2 @@
+CONFIG_INITRAMFS_SOURCE="../buildroot/output/images/rootfs.cpio"
+CONFIG_CHR_DEV_SG=y
