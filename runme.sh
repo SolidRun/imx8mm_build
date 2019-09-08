@@ -20,20 +20,26 @@ for i in $COMPONENTS; do
 		cd $i
 		if [ "x$i" == "xuboot-imx" ]; then
 			git checkout remotes/origin/$UBOOT_NXP_REL
+			git pull origin $UBOOT_NXP_REL
 		elif [ "x$i" == "xlinux-imx" ]; then
 			git checkout -b $NXP_REL
+			git pull origin $NXP_REL
 		elif [ "x$i" == "ximx-mkimage" ]; then
 			git checkout -b $NXP_REL
+			git pull origin $NXP_REL
 		elif [ "x$i" == "ximx-atf" ]; then
 			git checkout $NXP_REL
+			git pull origin $NXP_REL
 		else
 			git checkout -b $NXP_REL
+			git pull origin $NXP_REL
 		fi
 		if [[ -d $ROOTDIR/patches/$i/ ]]; then
 			git am $ROOTDIR/patches/$i/*.patch
 		fi
 	fi
 done
+ 
 #if [[ ! -d imx-atf ]]; then git clone https://source.codeaurora.org/external/imx/imx-atf/ -b imx_4.14.78_1.0.0_ga; fi
 #if [[ ! -d uboot-imx ]]; then git clone https://source.codeaurora.org/external/imx/uboot-imx/ -b imx_v2018.03_4.14.78_1.0.0_ga; fi
 #if [[ ! -d linux-imx ]]; then git clone https://source.codeaurora.org/external/imx/linux-imx/ -b imx_4.14.78_1.0.0_ga; fi

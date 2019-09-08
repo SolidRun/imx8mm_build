@@ -1,23 +1,35 @@
-From d428626e9cb628935bd5b24a96efb8ce4ef8947f Mon Sep 17 00:00:00 2001
-From: Rabeeh Khoury <rabeeh@solid-run.com>
-Date: Mon, 19 Aug 2019 13:03:52 +0300
-Subject: [PATCH 2/2] arm64: dts: add initial SolidRun SOM device tree
+From 0a56ceb14928aa4e2e00d3b5e76040b467182408 Mon Sep 17 00:00:00 2001
+From: TalPilo <tal.pilo@solid-run.com>
+Date: Sun, 8 Sep 2019 19:28:09 +0300
+Subject: [PATCH] Add imx8mm solidrun board device tree
 
-This device tree is used for board bringup only.
-The file should be split into SOM dtsi and carrier board dt.
-
-Signed-off-by: Rabeeh Khoury <rabeeh@solid-run.com>
+Signed-off-by: TalPilo <tal.pilo@solid-run.com>
 ---
- .../dts/freescale/fsl-imx8mm-solidrun.dts     | 772 ++++++++++++++++++
- 1 file changed, 772 insertions(+)
+ arch/arm64/boot/dts/freescale/Makefile        |   3 +-
+ .../dts/freescale/fsl-imx8mm-solidrun.dts     | 835 ++++++++++++++++++
+ 2 files changed, 837 insertions(+), 1 deletion(-)
  create mode 100755 arch/arm64/boot/dts/freescale/fsl-imx8mm-solidrun.dts
 
+diff --git a/arch/arm64/boot/dts/freescale/Makefile b/arch/arm64/boot/dts/freescale/Makefile
+index fcbca40bc8fa..5b9585767f61 100644
+--- a/arch/arm64/boot/dts/freescale/Makefile
++++ b/arch/arm64/boot/dts/freescale/Makefile
+@@ -126,7 +126,8 @@ dtb-$(CONFIG_ARCH_FSL_IMX8MM) += fsl-imx8mm-evk.dtb \
+ 				 fsl-imx8mm-evk-root.dtb \
+ 				 fsl-imx8mm-evk-revb.dtb \
+ 				 fsl-imx8mm-evk-revb-rm67191.dtb \
+-				 fsl-imx8mm-ddr4-evk-rm67191.dtb
++				 fsl-imx8mm-ddr4-evk-rm67191.dtb \
++				 fsl-imx8mm-solidrun.dtb
+ always		:= $(dtb-y)
+ subdir-y	:= $(dts-dirs)
+ clean-files	:= *.dtb
 diff --git a/arch/arm64/boot/dts/freescale/fsl-imx8mm-solidrun.dts b/arch/arm64/boot/dts/freescale/fsl-imx8mm-solidrun.dts
 new file mode 100755
-index 000000000000..02c7dabc1351
+index 000000000000..6a74029bef50
 --- /dev/null
 +++ b/arch/arm64/boot/dts/freescale/fsl-imx8mm-solidrun.dts
-@@ -0,0 +1,772 @@
+@@ -0,0 +1,835 @@
 +/*
 + * Copyright 2019 SolidRun ltd.
 + *
@@ -94,6 +106,18 @@ index 000000000000..02c7dabc1351
 +			regulator-max-microvolt = <5000000>;
 +		};
 +	};
++
++	sound-wm8904 {
++                compatible = "fsl,imx-audio-wm8904";
++                model = "wm8904-audio";
++                audio-cpu = <&sai2>;
++                audio-codec = <&wm8904>;
++                audio-routing =
++                        "Line Out Jack Left", "HPOUTL",
++                        "Line In Jack Right", "HPOUTR",
++                        "Micbias", "MICBIAS",
++                        "Mic in", "IN2R";
++        };
 +};
 +
 +&clk {
@@ -242,6 +266,18 @@ index 000000000000..02c7dabc1351
 +				MX8MM_IOMUXC_SAI1_TXD7_SAI1_TX_DATA7	0xd6
 +			>;
 +		};
++
++		pinctrl_sai2: sai2grp {
++                        fsl,pins = <
++                                MX8MM_IOMUXC_SAI2_TXFS_SAI2_TX_SYNC     0xd6
++                                MX8MM_IOMUXC_SAI2_TXC_SAI2_TX_BCLK      0xd6
++                                MX8MM_IOMUXC_SAI2_MCLK_SAI2_MCLK        0xd6
++                                MX8MM_IOMUXC_SAI2_TXD0_SAI2_TX_DATA0    0xd6
++                                MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8       0xd6
++                                MX8MM_IOMUXC_SAI2_RXD0_SAI2_RX_DATA0    0xd6
++                        >;
++                };
++
 +
 +		pinctrl_sai5: sai5grp {
 +			fsl,pins = <
@@ -437,6 +473,12 @@ index 000000000000..02c7dabc1351
 +	pinctrl-names = "default";
 +	pinctrl-0 = <&pinctrl_i2c1>;
 +	status = "okay";
++	
++	eeprom: eeprom@50{
++                compatible = "st,24c02", "atmel,24c02";
++                reg = <0x50>;
++                pagesize = <16>;
++        };
 +
 +	pmic: bd71837@4b {
 +		reg = <0x4b>;
@@ -580,6 +622,15 @@ index 000000000000..02c7dabc1351
 +	pinctrl-0 = <&pinctrl_i2c2>;
 +	status = "okay";
 +
++	wm8904: wm8904@1a {
++        	compatible = "wlf,wm8904";
++        	clocks = <&clk IMX8MM_CLK_SAI2_ROOT>;
++        	clock-names = "mclk";
++        	reg = <0x1a>;
++       		wlf,mute-gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
++        	status = "okay";
++        };
++
 +	adv_bridge: adv7535@3d {
 +		compatible = "adi,adv7533";
 +		reg = <0x3d>;
@@ -600,6 +651,19 @@ index 000000000000..02c7dabc1351
 +	pinctrl-names = "default";
 +	pinctrl-0 = <&pinctrl_i2c3>;
 +	status = "okay";
++	
++	rtc@69 {
++                compatible = "abracon,ab1805";
++                reg = <0x69>;
++		abracon,tc-diode = "schottky";
++		abracon,tc-resistor = <3>;
++        };
++
++	eeprom_carrier: eeprom@57{
++                compatible = "st,24c02", "atmel,24c02";
++                reg = <0x57>;
++                pagesize = <16>;
++        };
 +};
 +
 +&i2c4 {
@@ -655,6 +719,17 @@ index 000000000000..02c7dabc1351
 +	dmas = <&sdma2 0 26 0>, <&sdma2 1 26 0>;
 +	status = "okay";
 +};
++
++&sai2 {
++        pinctrl-names = "default";
++        pinctrl-0 = <&pinctrl_sai2>;
++        assigned-clocks = <&clk IMX8MM_CLK_SAI2_SRC>,
++                        <&clk IMX8MM_CLK_SAI2_DIV>;
++        assigned-clock-parents = <&clk IMX8MM_AUDIO_PLL1_OUT>;
++        assigned-clock-rates = <0>, <24576000>;
++        status = "okay";
++};
++
 +
 +&sai5 {
 +	pinctrl-names = "default";
