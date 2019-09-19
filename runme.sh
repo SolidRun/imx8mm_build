@@ -5,7 +5,7 @@ set -e
 NXP_REL=rel_imx_4.14.78_1.0.0_ga
 UBOOT_NXP_REL=imx_v2018.03_4.14.78_1.0.0_ga
 BUILDROOT_VERSION=2019.02
-
+GTI_REL=v4.5.0.3
 ###
 
 export ARCH=arm64
@@ -58,12 +58,40 @@ if [[ ! -d $ROOTDIR/build/buildroot ]]; then
 	git clone https://github.com/buildroot/buildroot -b $BUILDROOT_VERSION
 fi
 
+if [[ ! -d $ROOTDIR/build/GTISDK-Linux_aarch64_${GTI_REL} ]]; then
+	cd $ROOTDIR/build
+	if [ ! -f $ROOTDIR/GTI/GTISDK-Linux_aarch64_${GTI_REL}.tgz ]; then
+		echo "Place GTI Linux aarch64 version ${GTI_REL} SDK at GTI directory"
+		exit
+	fi
+	tar zxf $ROOTDIR/GTI/GTISDK-Linux_aarch64_${GTI_REL}.tgz
+fi
+if [[ ! -d $ROOTDIR/build/GTISDK-Linux_x86_64_${GTI_REL} ]]; then
+	cd $ROOTDIR/build
+	if [ ! -f $ROOTDIR/GTI/GTISDK-Linux_x86_64_${GTI_REL}.tgz ]; then
+		echo "Place GTI Linux x86_64 version ${GTI_REL} SDK at GTI directory"
+		exit
+	fi
+	tar zxf $ROOTDIR/GTI/GTISDK-Linux_x86_64_${GTI_REL}.tgz
+fi
+
 # Build buildroot
 cd $ROOTDIR/build/buildroot
 cp $ROOTDIR/configs/buildroot_defconfig .config
 make
 
 export CROSS_COMPILE=$ROOTDIR/build/buildroot/output/host/bin/aarch64-linux-
+
+
+# Build GTI PCIe drivers
+cd $ROOTDIR/build/GTISDK-Linux_x86_64_${GTI_REL}/Drivers/Linux/pcie_drv
+KERNELDIR=$ROOTDIR/build/linux-imx make
+
+# Build GTI liteDemo
+cd $ROOTDIR/build/GTISDK-Linux_aarch64_${GTI_REL}/Apps/liteDemo
+export GTI_CC=$ROOTDIR/build/buildroot/output/host/bin/aarch64-linux-g++
+export CPU_ARCH=aarch64
+make
 
 # Build ATF
 cd $ROOTDIR/build/imx-atf
@@ -94,14 +122,19 @@ make flash_evk SOC=iMX8MM
 # Create disk images
 mkdir -p $ROOTDIR/images/tmp/
 cd $ROOTDIR/images
-dd if=/dev/zero of=tmp/part1.fat32 bs=1M count=28
+dd if=/dev/zero of=tmp/part1.fat32 bs=1M count=48
 mkdosfs tmp/part1.fat32
 mcopy -i tmp/part1.fat32 $ROOTDIR/build/linux-imx/arch/arm64/boot/Image ::/Image
 mcopy -s -i tmp/part1.fat32 $ROOTDIR/build/linux-imx/arch/arm64/boot/dts/freescale/*imx8mm*.dtb ::/
+mcopy -i tmp/part1.fat32 $ROOTDIR/build/GTISDK-Linux_aarch64_${GTI_REL}/Apps/liteDemo/liteDemo ::/
+mcopy -i tmp/part1.fat32 $ROOTDIR/build/GTISDK-Linux_x86_64_${GTI_REL}/Drivers/Linux/pcie_drv/gti_pcie_drv.ko ::/
+mcopy -i tmp/part1.fat32 $ROOTDIR/build/GTISDK-Linux_aarch64_${GTI_REL}/Apps/Models/2803/gti_resnet18_2803.model ::/
+mcopy -i tmp/part1.fat32 $ROOTDIR/build/GTISDK-Linux_aarch64_${GTI_REL}/Apps/Data/Image_lite/swimming_c40.jpg ::/
+mcopy -i tmp/part1.fat32 $ROOTDIR/build/GTISDK-Linux_aarch64_${GTI_REL}/Lib/Linux/aarch64/libftd3xx.so ::/
 
-dd if=/dev/zero of=microsd.img bs=1M count=101
+dd if=/dev/zero of=microsd.img bs=1M count=121
 dd if=$ROOTDIR/build/imx-mkimage/iMX8M/flash.bin of=microsd.img bs=1K seek=33 conv=notrunc
-parted --script microsd.img mklabel msdos mkpart primary 2MiB 30MiB mkpart primary 30MiB 60MiB
+parted --script microsd.img mklabel msdos mkpart primary 2MiB 50MiB mkpart primary 50MiB 120MiB
 dd if=tmp/part1.fat32 of=microsd.img bs=1M seek=2 conv=notrunc
-dd if=$ROOTDIR/build/buildroot/output/images/rootfs.ext2 of=microsd.img bs=1M seek=30 conv=notrunc
-echo "Image is ready - images/microsd.img"
+dd if=$ROOTDIR/build/buildroot/output/images/rootfs.ext2 of=microsd.img bs=1M seek=50 conv=notrunc
+echo -e "\n\n*** Image is ready - images/microsd.img"
