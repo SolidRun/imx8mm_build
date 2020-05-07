@@ -1,0 +1,43 @@
+From e439e2f93169240e5a76cba6ca87d1f875f9243a Mon Sep 17 00:00:00 2001
+From: TalPilo <tal.pilo@solid-run.com>
+Date: Thu, 7 May 2020 16:01:22 +0300
+Subject: [PATCH] define hummingboard pulse leds gpio
+
+Signed-off-by: TalPilo <tal.pilo@solid-run.com>
+---
+ .../arm64/boot/dts/freescale/fsl-imx8mm-solidrun.dts | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/freescale/fsl-imx8mm-solidrun.dts b/arch/arm64/boot/dts/freescale/fsl-imx8mm-solidrun.dts
+index af48f72378a7..6ac7b27734c1 100755
+--- a/arch/arm64/boot/dts/freescale/fsl-imx8mm-solidrun.dts
++++ b/arch/arm64/boot/dts/freescale/fsl-imx8mm-solidrun.dts
+@@ -29,12 +29,6 @@
+ 		compatible = "gpio-leds";
+ 		pinctrl-names = "default";
+ 		pinctrl-0 = <&pinctrl_gpio_led>;
+-
+-		status {
+-			label = "status";
+-			gpios = <&gpio3 16 0>;
+-			default-state = "on";
+-		};
+ 	};
+ 
+ 	regulators {
+@@ -154,7 +148,11 @@
+ 
+ 		pinctrl_gpio_led: gpioledgrp {
+ 			fsl,pins = <
+-				MX8MM_IOMUXC_NAND_READY_B_GPIO3_IO16	0x19
++				MX8MM_IOMUXC_ECSPI1_SCLK_GPIO5_IO6      0x19
++                                MX8MM_IOMUXC_ECSPI1_MISO_GPIO5_IO8      0x19
++                                MX8MM_IOMUXC_ECSPI1_MOSI_GPIO5_IO7      0x19
++                                MX8MM_IOMUXC_ECSPI1_SS0_GPIO5_IO9       0x19
++                                MX8MM_IOMUXC_UART4_TXD_GPIO5_IO29       0x19
+ 			>;
+ 		};
+ 
+-- 
+2.17.1
+
