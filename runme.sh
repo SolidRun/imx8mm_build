@@ -55,36 +55,12 @@ if [[ ! -d $ROOTDIR/build/buildroot ]]; then
 	git clone https://github.com/buildroot/buildroot -b $BUILDROOT_VERSION
 fi
 
-if [[ ! -d $ROOTDIR/build/GTISDK-Linux_aarch64_${GTI_REL} ]]; then
-	cd $ROOTDIR/build
-	if [ ! -f $ROOTDIR/GTI/GTISDK-Linux_aarch64_${GTI_REL}.tgz ]; then
-		echo "Place GTI Linux aarch64 version ${GTI_REL} SDK at GTI directory"
-		exit
-	fi
-	tar zxf $ROOTDIR/GTI/GTISDK-Linux_aarch64_${GTI_REL}.tgz
-fi
-if [[ ! -d $ROOTDIR/build/GTISDK-Linux_x86_64_${GTI_REL} ]]; then
-	cd $ROOTDIR/build
-	if [ ! -f $ROOTDIR/GTI/GTISDK-Linux_x86_64_${GTI_REL}.tgz ]; then
-		echo "Place GTI Linux x86_64 version ${GTI_REL} SDK at GTI directory"
-		exit
-	fi
-	tar zxf $ROOTDIR/GTI/GTISDK-Linux_x86_64_${GTI_REL}.tgz
-fi
-
 # Build buildroot
 cd $ROOTDIR/build/buildroot
 cp $ROOTDIR/configs/buildroot_defconfig .config
 make
 
 export CROSS_COMPILE=$ROOTDIR/build/buildroot/output/host/bin/aarch64-linux-
-
-
-# Build GTI liteDemo
-cd $ROOTDIR/build/GTISDK-Linux_aarch64_${GTI_REL}/Apps/liteDemo
-export GTI_CC=$ROOTDIR/build/buildroot/output/host/bin/aarch64-linux-g++
-export CPU_ARCH=aarch64
-make
 
 # Build ATF
 cd $ROOTDIR/build/imx-atf
@@ -105,10 +81,6 @@ make defconfig
 ./scripts/kconfig/merge_config.sh .config $ROOTDIR/configs/kernel.extra
 make -j32 Image dtbs
 
-# Build GTI PCIe drivers
-cd $ROOTDIR/build/GTISDK-Linux_x86_64_${GTI_REL}/Drivers/Linux/pcie_drv
-KERNELDIR=$ROOTDIR/build/linux-imx make
-
 # Bring bootlader all together
 unset ARCH CROSS_COMPILE
 cd $ROOTDIR/build/imx-mkimage/iMX8M
@@ -121,16 +93,15 @@ mkdir -p $ROOTDIR/images/tmp/
 cd $ROOTDIR/images
 dd if=/dev/zero of=tmp/part1.fat32 bs=1M count=58
 mkdosfs tmp/part1.fat32
+
+echo "label linux" > $ROOTDIR/images/extlinux.conf
+echo "        linux ../Image" >> $ROOTDIR/images/extlinux.conf
+echo "        fdt ../fsl-imx8mm-solidrun.dtb" >> $ROOTDIR/images/extlinux.conf
+echo "        append root=/dev/mmcblk1p2 rootwait" >> $ROOTDIR/images/extlinux.conf
+mmd -i tmp/part1.fat32 ::/extlinux
+mcopy -i tmp/part1.fat32 $ROOTDIR/images/extlinux.conf ::/extlinux/extlinux.conf
 mcopy -i tmp/part1.fat32 $ROOTDIR/build/linux-imx/arch/arm64/boot/Image ::/Image
 mcopy -s -i tmp/part1.fat32 $ROOTDIR/build/linux-imx/arch/arm64/boot/dts/freescale/*imx8mm*.dtb ::/
-mcopy -i tmp/part1.fat32 $ROOTDIR/build/GTISDK-Linux_aarch64_${GTI_REL}/Apps/liteDemo/liteDemo ::/
-mcopy -i tmp/part1.fat32 $ROOTDIR/build/GTISDK-Linux_x86_64_${GTI_REL}/Drivers/Linux/pcie_drv/gti_pcie_drv.ko ::/
-mcopy -i tmp/part1.fat32 $ROOTDIR/build/GTISDK-Linux_aarch64_${GTI_REL}/Apps/Models/2803/gti_resnet18_2803.model ::/
-mcopy -i tmp/part1.fat32 $ROOTDIR/build/GTISDK-Linux_aarch64_${GTI_REL}/Apps/Models/2803/gti_mnet_fc1000_2803.model ::/
-mcopy -i tmp/part1.fat32 $ROOTDIR/build/GTISDK-Linux_aarch64_${GTI_REL}/Apps/Data/Image_lite/swimming_c40.jpg ::/
-mcopy -i tmp/part1.fat32 $ROOTDIR/build/GTISDK-Linux_aarch64_${GTI_REL}/Apps/Data/Image_lite/bridge_c20.jpg ::/
-mcopy -i tmp/part1.fat32 $ROOTDIR/build/GTISDK-Linux_aarch64_${GTI_REL}/Lib/Linux/aarch64/libftd3xx.so ::/
-
 dd if=/dev/zero of=microsd.img bs=1M count=121
 dd if=$ROOTDIR/build/imx-mkimage/iMX8M/flash.bin of=microsd.img bs=1K seek=33 conv=notrunc
 parted --script microsd.img mklabel msdos mkpart primary 2MiB 60MiB mkpart primary 60MiB 120MiB
