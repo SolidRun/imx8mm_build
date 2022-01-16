@@ -4,26 +4,38 @@ set -e
 ### General setup
 NXP_REL=rel_imx_4.14.78_1.0.0_ga
 UBOOT_NXP_REL=imx_v2018.03_4.14.78_1.0.0_ga
-BUILDROOT_VERSION=2019.02
+LINUX_REL=linux-5.4.y-imx8
+BUILDROOT_VERSION=2021.02.8
 GTI_REL=v4.5.0.3
 ###
 
 export ARCH=arm64
 ROOTDIR=`pwd`
 
+############## ######################### #################### ################
+
+############## ########################  ################### ################
+
 COMPONENTS="imx-atf uboot-imx linux-imx imx-mkimage"
 mkdir -p build
 for i in $COMPONENTS; do
 	if [[ ! -d $ROOTDIR/build/$i ]]; then
 		cd $ROOTDIR/build/
-		git clone https://source.codeaurora.org/external/imx/$i
+		
+		if [[ "x$i" == "xlinux-imx" ]];then 
+			git clone https://github.com/SolidRun/linux-stable.git
+			mv -i linux-stable linux-imx
+		else
+			git clone https://source.codeaurora.org/external/imx/$i
+		fi
+
 		cd $i
 		if [ "x$i" == "xuboot-imx" ]; then
 			git checkout remotes/origin/$UBOOT_NXP_REL
 			git pull origin $UBOOT_NXP_REL
 		elif [ "x$i" == "xlinux-imx" ]; then
-			git checkout -b $NXP_REL
-			git pull origin $NXP_REL
+			git checkout -b $LINUX_REL
+			git pull origin $LINUX_REL
 		elif [ "x$i" == "ximx-mkimage" ]; then
 			git checkout -b $NXP_REL
 			git pull origin $NXP_REL
@@ -57,7 +69,8 @@ fi
 
 # Build buildroot
 cd $ROOTDIR/build/buildroot
-cp $ROOTDIR/configs/buildroot_defconfig .config
+cp $ROOTDIR/configs/imx8mp_hbp_minimal_defconfig .config
+make imx8mp_hbp_minimal_defconfig
 make
 
 export CROSS_COMPILE=$ROOTDIR/build/buildroot/output/host/bin/aarch64-linux-
@@ -96,7 +109,7 @@ mkdosfs tmp/part1.fat32
 
 echo "label linux" > $ROOTDIR/images/extlinux.conf
 echo "        linux ../Image" >> $ROOTDIR/images/extlinux.conf
-echo "        fdt ../fsl-imx8mm-solidrun.dtb" >> $ROOTDIR/images/extlinux.conf
+echo "        fdt ../imx8mm-hummingboard-pulse.dtb" >> $ROOTDIR/images/extlinux.conf
 echo "        append root=/dev/mmcblk1p2 rootwait" >> $ROOTDIR/images/extlinux.conf
 mmd -i tmp/part1.fat32 ::/extlinux
 mcopy -i tmp/part1.fat32 $ROOTDIR/images/extlinux.conf ::/extlinux/extlinux.conf
