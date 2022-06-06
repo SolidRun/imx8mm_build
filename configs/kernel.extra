@@ -1,7 +1,7 @@
 CONFIG_INITRAMFS_SOURCE="../buildroot/output/images/rootfs.cpio"
 CONFIG_CHR_DEV_SG=y
 CONFIG_EXTRA_FIRMWARE="/imx/sdma/sdma-imx7d.bin"
-CONFIG_EXTRA_FIRMWARE_DIR="/lib/firmware"
+CONFIG_EXTRA_FIRMWARE_DIR="../buildroot/output/target/lib/firmware"
 CONFIG_WANT_DEV_COREDUMP=y
 CONFIG_DEV_COREDUMP=y
 CONFIG_EEPROM_AT24=y

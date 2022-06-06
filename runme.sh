@@ -58,6 +58,9 @@ fi
 # Build buildroot
 cd $ROOTDIR/build/buildroot
 cp $ROOTDIR/configs/buildroot_defconfig .config
+if [ $UID -eq 0 ]; then
+	export FORCE_UNSAFE_CONFIGURE=1
+fi
 make
 
 export CROSS_COMPILE=$ROOTDIR/build/buildroot/output/host/bin/aarch64-linux-
