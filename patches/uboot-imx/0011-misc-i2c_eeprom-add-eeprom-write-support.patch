@@ -1,7 +1,7 @@
 From 6ba681335e83672a6c983f308b5bfe7b0cc39952 Mon Sep 17 00:00:00 2001
 From: Baruch Siach <baruch@tkos.co.il>
 Date: Sun, 7 Apr 2019 12:38:49 +0300
-Subject: [PATCH 11/14] misc: i2c_eeprom: add eeprom write support
+Subject: [PATCH 11/17] misc: i2c_eeprom: add eeprom write support
 
 Write up to page size in each i2c transfer.
 

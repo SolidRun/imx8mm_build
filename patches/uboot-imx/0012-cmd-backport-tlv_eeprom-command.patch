@@ -1,7 +1,7 @@
 From a654e5b004b8a2eaa6de7b22346673f58d6d898d Mon Sep 17 00:00:00 2001
 From: Josua Mayer <josua@solid-run.com>
 Date: Mon, 6 Jun 2022 14:17:25 +0300
-Subject: [PATCH 12/14] cmd: backport tlv_eeprom command
+Subject: [PATCH 12/17] cmd: backport tlv_eeprom command
 
 Signed-off-by: Josua Mayer <josua@solid-run.com>
 ---
