@@ -1,0 +1,72 @@
+From 3a4ed2352328a72cd6c3a82b047af2800366229e Mon Sep 17 00:00:00 2001
+From: Josua Mayer <josua@solid-run.com>
+Date: Tue, 25 Oct 2022 13:06:21 +0300
+Subject: [PATCH] imx8mm_solidrun: add lpddr4 training for lower ddr clock
+ rates
+
+Different variants of the SoC, as well as different voltage levels
+inherently support different ddr clock rates.
+Explicitly add training for 1.5, 1.2 and 1.0 GHz.
+
+Signed-off-by: Josua Mayer <josua@solid-run.com>
+---
+ .../solidrun/imx8mm_solidrun/lpddr4_timing.c  | 32 +++++++++++++++++--
+ 1 file changed, 30 insertions(+), 2 deletions(-)
+
+diff --git a/board/solidrun/imx8mm_solidrun/lpddr4_timing.c b/board/solidrun/imx8mm_solidrun/lpddr4_timing.c
+index a02627cf20..2a5bcf1774 100644
+--- a/board/solidrun/imx8mm_solidrun/lpddr4_timing.c
++++ b/board/solidrun/imx8mm_solidrun/lpddr4_timing.c
+@@ -1937,19 +1937,47 @@ struct dram_cfg_param lpddr4_phy_pie[] = {
+ 
+ struct dram_fsp_msg lpddr4_dram_fsp_msg[] = {
+ 	{
+-		/* P0 3000mts 1D */
++		/* P0 3000mts 1D @ 1.5GHz*/
+ 		.drate = 3000,
+ 		.fw_type = FW_1D_IMAGE,
+ 		.fsp_cfg = lpddr4_fsp0_cfg,
+ 		.fsp_cfg_num = ARRAY_SIZE(lpddr4_fsp0_cfg),
+ 	},
+ 	{
+-		/* P0 3000mts 2D */
++		/* P0 3000mts 2D @ 1.5GHz */
+ 		.drate = 3000,
+ 		.fw_type = FW_2D_IMAGE,
+ 		.fsp_cfg = lpddr4_fsp0_2d_cfg,
+ 		.fsp_cfg_num = ARRAY_SIZE(lpddr4_fsp0_2d_cfg),
+ 	},
++	{
++		/* P0 3000mts 1D @ 1.2GHz*/
++		.drate = 2400,
++		.fw_type = FW_1D_IMAGE,
++		.fsp_cfg = lpddr4_fsp0_cfg,
++		.fsp_cfg_num = ARRAY_SIZE(lpddr4_fsp0_cfg),
++	},
++	{
++		/* P0 3000mts 2D @ 1.2GHz */
++		.drate = 2400,
++		.fw_type = FW_2D_IMAGE,
++		.fsp_cfg = lpddr4_fsp0_2d_cfg,
++		.fsp_cfg_num = ARRAY_SIZE(lpddr4_fsp0_2d_cfg),
++	},
++	{
++		/* P0 3000mts 1D @ 1.0GHz*/
++		.drate = 2000,
++		.fw_type = FW_1D_IMAGE,
++		.fsp_cfg = lpddr4_fsp0_cfg,
++		.fsp_cfg_num = ARRAY_SIZE(lpddr4_fsp0_cfg),
++	},
++	{
++		/* P0 3000mts 2D @ 1.0GHz */
++		.drate = 2000,
++		.fw_type = FW_2D_IMAGE,
++		.fsp_cfg = lpddr4_fsp0_2d_cfg,
++		.fsp_cfg_num = ARRAY_SIZE(lpddr4_fsp0_2d_cfg),
++	},
+ 	{
+ 		/* P1 400mts 1D */
+ 		.drate = 400,
+-- 
+2.38.0
+
