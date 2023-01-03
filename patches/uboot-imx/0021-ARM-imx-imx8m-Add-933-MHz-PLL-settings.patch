@@ -1,0 +1,32 @@
+From 65a6d0ac2101882c9796839019d5f85c14ab435c Mon Sep 17 00:00:00 2001
+From: Marek Vasut <marex@denx.de>
+Date: Sat, 26 Feb 2022 04:37:41 +0100
+Subject: [PATCH 21/24] ARM: imx: imx8m: Add 933 MHz PLL settings
+
+Add settings for operating PLL at 933 MHz. This setting is useful in
+case the LPDDR4 DRAM should operate at 1866 MHz or 3733 MT/s.
+
+Signed-off-by: Marek Vasut <marex@denx.de>
+Cc: Fabio Estevam <festevam@denx.de>
+Cc: Peng Fan <peng.fan@nxp.com>
+Cc: Stefano Babic <sbabic@denx.de>
+Reviewed-by: Fabio Estevam <festevam@denx.de>
+---
+ arch/arm/mach-imx/imx8m/clock_imx8mm.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm/mach-imx/imx8m/clock_imx8mm.c b/arch/arm/mach-imx/imx8m/clock_imx8mm.c
+index 12671aadf1..ea085a8750 100644
+--- a/arch/arm/mach-imx/imx8m/clock_imx8mm.c
++++ b/arch/arm/mach-imx/imx8m/clock_imx8mm.c
+@@ -293,6 +293,7 @@ struct imx_int_pll_rate_table {
+ 
+ static struct imx_int_pll_rate_table imx8mm_fracpll_tbl[] = {
+ 	PLL_1443X_RATE(1000000000U, 250, 3, 1, 0),
++	PLL_1443X_RATE(933000000U, 311, 4, 1, 0),
+ 	PLL_1443X_RATE(800000000U, 300, 9, 0, 0),
+ 	PLL_1443X_RATE(750000000U, 250, 8, 0, 0),
+ 	PLL_1443X_RATE(650000000U, 325, 3, 2, 0),
+-- 
+2.35.3
+

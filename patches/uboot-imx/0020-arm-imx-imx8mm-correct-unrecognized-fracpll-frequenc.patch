@@ -1,0 +1,45 @@
+From be748c0fbb54d05ab6c96bf065e792ec372981b4 Mon Sep 17 00:00:00 2001
+From: Andrey Zhizhikin <andrey.zhizhikin@leica-geosystems.com>
+Date: Mon, 3 May 2021 09:59:17 +0200
+Subject: [PATCH 20/24] arm: imx: imx8mm: correct unrecognized fracpll
+ frequency
+
+Frequency requested by ddrphy_init_set_dfi_clk from fracpll uses MHZ()
+macro, which expands the value provided to the Hz range without taking into
+account the precise Hz setting. This causes the frequency of 266 MHz not ot
+be found in the imx8mm_fracpll_tbl, since it is entered there with a
+precise Hz value. This in turn causes the boot hang in SPL, as proper DDR
+fracpll frequency cannot be determined.
+
+Correct the value in imx8mm_fracpll_tbl to match the one expanded by
+MHZ(266) macro, rounding it down to MHz range only.
+
+Signed-off-by: Andrey Zhizhikin <andrey.zhizhikin@leica-geosystems.com>
+Cc: Stefano Babic <sbabic@denx.de>
+Cc: Fabio Estevam <festevam@gmail.com>
+Cc: "NXP i.MX U-Boot Team" <uboot-imx@nxp.com>
+Cc: Peng Fan <peng.fan@nxp.com>
+Cc: Simon Glass <sjg@chromium.org>
+Cc: Ye Li <ye.li@nxp.com>
+Fixes: 825ab6b406 ("driver: ddr: Refine the ddr init driver on imx8m")
+Reviewed-by: Fabio Estevam <festevam@gmail.com>
+---
+ arch/arm/mach-imx/imx8m/clock_imx8mm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm/mach-imx/imx8m/clock_imx8mm.c b/arch/arm/mach-imx/imx8m/clock_imx8mm.c
+index f5f8848920..12671aadf1 100644
+--- a/arch/arm/mach-imx/imx8m/clock_imx8mm.c
++++ b/arch/arm/mach-imx/imx8m/clock_imx8mm.c
+@@ -299,7 +299,7 @@ static struct imx_int_pll_rate_table imx8mm_fracpll_tbl[] = {
+ 	PLL_1443X_RATE(600000000U, 300, 3, 2, 0),
+ 	PLL_1443X_RATE(594000000U, 99, 1, 2, 0),
+ 	PLL_1443X_RATE(400000000U, 300, 9, 1, 0),
+-	PLL_1443X_RATE(266666667U, 400, 9, 2, 0),
++	PLL_1443X_RATE(266000000U, 400, 9, 2, 0),
+ 	PLL_1443X_RATE(167000000U, 334, 3, 4, 0),
+ 	PLL_1443X_RATE(100000000U, 300, 9, 3, 0),
+ };
+-- 
+2.35.3
+

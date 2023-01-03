@@ -1,0 +1,33 @@
+From 16fb6a82c27ee95cab10d16eafa5584fe13a93c6 Mon Sep 17 00:00:00 2001
+From: Ye Li <ye.li@nxp.com>
+Date: Mon, 23 Mar 2020 19:54:29 -0700
+Subject: [PATCH 19/24] imx8mm: clock: fix fracpll decode issue
+
+The fracpll decoding is using the bit definitions for int pll. Most of
+them are same, but the CLKE bit is different. Fix the wrong CLKE_MASK
+for fracpll and correct all bit definitions in fracpll decoding.
+
+Reviewed-by: Fabio Estevam <festevam@gmail.com>
+Reviewed-by: Peng Fan <peng.fan@nxp.com>
+Signed-off-by: Ye Li <ye.li@nxp.com>
+Signed-off-by: Peng Fan <peng.fan@nxp.com>
+---
+ arch/arm/mach-imx/imx8m/clock_imx8mm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm/mach-imx/imx8m/clock_imx8mm.c b/arch/arm/mach-imx/imx8m/clock_imx8mm.c
+index 734d4b5f10..f5f8848920 100644
+--- a/arch/arm/mach-imx/imx8m/clock_imx8mm.c
++++ b/arch/arm/mach-imx/imx8m/clock_imx8mm.c
+@@ -236,7 +236,7 @@ u32 decode_fracpll(enum clk_root_src frac_pll)
+ 		return 0;
+ 	}
+ 
+-	if (!(pll_gnrl_ctl & INTPLL_CLKE_MASK))
++	if (!(pll_gnrl_ctl & INTPLL_DIV2_CLKE_MASK))
+ 		return 0;
+ 
+ 	main_div = (pll_fdiv_ctl0 & INTPLL_MAIN_DIV_MASK) >>
+-- 
+2.35.3
+
