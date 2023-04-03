@@ -1,0 +1,36 @@
+From 2ebed3c54525a27001f45e40cacd5204bc8e1a8e Mon Sep 17 00:00:00 2001
+From: Dan Carpenter <dan.carpenter@oracle.com>
+Date: Tue, 3 Dec 2019 12:58:55 +0300
+Subject: [PATCH 12/13] brcmfmac: Fix use after free in brcmf_sdio_readframes()
+
+The brcmu_pkt_buf_free_skb() function frees "pkt" so it leads to a
+static checker warning:
+
+    drivers/net/wireless/broadcom/brcm80211/brcmfmac/sdio.c:1974 brcmf_sdio_readframes()
+    error: dereferencing freed memory 'pkt'
+
+It looks like there was supposed to be a continue after we free "pkt".
+
+Fixes: 4754fceeb9a6 ("brcmfmac: streamline SDIO read frame routine")
+Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
+Acked-by: Franky Lin <franky.lin@broadcom.com>
+Signed-off-by: Kalle Valo <kvalo@codeaurora.org>
+---
+ drivers/net/wireless/broadcom/brcm80211/brcmfmac/sdio.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/sdio.c b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/sdio.c
+index 62f1eedc65c2..745184c2fc00 100644
+--- a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/sdio.c
++++ b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/sdio.c
+@@ -1948,6 +1948,7 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
+ 					       BRCMF_SDIO_FT_NORMAL)) {
+ 				rd->len = 0;
+ 				brcmu_pkt_buf_free_skb(pkt);
++				continue;
+ 			}
+ 			bus->sdcnt.rx_readahead_cnt++;
+ 			if (rd->len != roundup(rd_new.len, 16)) {
+-- 
+2.35.3
+
