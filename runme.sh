@@ -16,7 +16,7 @@ mkdir -p build
 for i in $COMPONENTS; do
 	if [[ ! -d $ROOTDIR/build/$i ]]; then
 		cd $ROOTDIR/build/
-		git clone https://source.codeaurora.org/external/imx/$i
+		git clone https://github.com/nxp-imx/$i
 		cd $i
 		if [ "x$i" == "xuboot-imx" ]; then
 			git checkout remotes/origin/$UBOOT_NXP_REL
