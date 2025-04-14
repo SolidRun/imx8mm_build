@@ -19,20 +19,19 @@ for i in $COMPONENTS; do
 		git clone https://github.com/nxp-imx/$i
 		cd $i
 		if [ "x$i" == "xuboot-imx" ]; then
-			git checkout remotes/origin/$UBOOT_NXP_REL
-			git pull origin $UBOOT_NXP_REL
+			git checkout -b $UBOOT_NXP_REL remotes/origin/$UBOOT_NXP_REL
 		elif [ "x$i" == "xlinux-imx" ]; then
 			git checkout -b $NXP_REL
-			git pull origin $NXP_REL
+			git reset --hard $NXP_REL
 		elif [ "x$i" == "ximx-mkimage" ]; then
 			git checkout -b $NXP_REL
-			git pull origin $NXP_REL
+			git reset --hard $NXP_REL
 		elif [ "x$i" == "ximx-atf" ]; then
-			git checkout $NXP_REL
-			git pull origin $NXP_REL
+			git checkout -b $NXP_REL
+			git reset --hard $NXP_REL
 		else
 			git checkout -b $NXP_REL
-			git pull origin $NXP_REL
+			git reset --hard $NXP_REL
 		fi
 		if [[ -d $ROOTDIR/patches/$i/ ]]; then
 			git am $ROOTDIR/patches/$i/*.patch
