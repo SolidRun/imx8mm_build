@@ -11,6 +11,16 @@ GTI_REL=v4.5.0.3
 export ARCH=arm64
 ROOTDIR=`pwd`
 
+# Check if git is configured
+GIT_CONF=`git config user.name || true`
+if [ "x$GIT_CONF" == "x" ]; then
+	echo "git is not configured! using fake email and username ..."
+	export GIT_AUTHOR_NAME="SolidRun imx8mm_build Script"
+	export GIT_AUTHOR_EMAIL="support@solid-run.com"
+	export GIT_COMMITTER_NAME="${GIT_AUTHOR_NAME}"
+	export GIT_COMMITTER_EMAIL="${GIT_AUTHOR_EMAIL}"
+fi
+
 COMPONENTS="imx-atf uboot-imx linux-imx imx-mkimage"
 mkdir -p build
 for i in $COMPONENTS; do
