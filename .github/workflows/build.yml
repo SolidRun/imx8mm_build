@@ -2,9 +2,9 @@ name: build
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "develop-lf-6.6.52-2.2.0" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "develop-lf-6.6.52-2.2.0" ]
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -41,7 +41,7 @@ jobs:
         with:
           context: docker
           push: true
-          tags: ciserver.ci:5000/${{ github.repository_id }}:lf-4.14.y-imx8mm
+          tags: ciserver.ci:5000/${{ github.repository_id }}:lf-6.6.52-2.2.0
           cache-from: type=registry,ref=ciserver.ci:5000/${{ github.repository_id }}:cache
           cache-to: type=registry,ref=ciserver.ci:5000/${{ github.repository_id }}:cache,mode=max
           build-args: |
@@ -53,7 +53,7 @@ jobs:
     runs-on: self-hosted
     timeout-minutes: 1080
     container:
-        image: ciserver.ci:5000/${{ github.repository_id }}:lf-4.14.y-imx8mm
+        image: ciserver.ci:5000/${{ github.repository_id }}:lf-6.6.52-2.2.0
         credentials:
             username: ${{ secrets.CI_CACHE_REGISTRY_LOGIN }}
             password: ${{ secrets.CI_CACHE_REGISTRY_PASSWORD }}
@@ -74,13 +74,21 @@ jobs:
       - name: Build
         shell: bash -e {0}
         run: |
-            ./runme.sh
+            env SHALLOW=true BOOTSOURCE=mmc-data DISTRO=buildroot ./runme.sh
+            env SHALLOW=true BOOTSOURCE=mmc-boot0 DISTRO=buildroot ./runme.sh
+            env SHALLOW=true BOOTSOURCE=mmc-boot1 DISTRO=buildroot ./runme.sh
+            env SHALLOW=true BOOTSOURCE=mmc-data DISTRO=debian ./runme.sh
+            env SHALLOW=true BOOTSOURCE=mmc-boot0 DISTRO=debian ./runme.sh
+            env SHALLOW=true BOOTSOURCE=mmc-boot1 DISTRO=debian ./runme.sh
 
       - name: Select artifacts for publishing
         shell: bash -e {0}
         run: |
             mkdir deploy
-            cp -L images/microsd.img deploy/
+            cp -L images/linux-*.tar deploy/
+            cp -L images/linux-headers-*.tar deploy/
+            cp -L images/*.img deploy/
+            cp -L images/*.bin deploy/
             xz -9 deploy/*
             ls -lh deploy
 
@@ -99,7 +107,7 @@ jobs:
   publish_images:
     needs: build_images
     runs-on: self-hosted
-    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/develop-lf-6.6.52-2.2.0' && github.event_name != 'pull_request'
     steps:
       - name: Download an artifacts from MinIO
         uses: yakubique/minio-download@v1.1.1
@@ -121,4 +129,4 @@ jobs:
           aws_bucket: ${{ secrets.IMAGES_S3_BUCKET }}
           endpoint: ${{ secrets.IMAGES_S3_HOST }}
           source_dir: deploy
-          destination_dir: IMX8/imx8mm_build/lf-4.14.y/${{ needs.build_images.outputs.build_tag }}
+          destination_dir: IMX8/imx8mm_build/lf-6.6.52-2.2.0/${{ needs.build_images.outputs.build_tag }}
