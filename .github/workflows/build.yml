@@ -74,12 +74,13 @@ jobs:
       - name: Build
         shell: bash -e {0}
         run: |
-            env SHALLOW=true BOOTSOURCE=mmc-data DISTRO=buildroot ./runme.sh
-            env SHALLOW=true BOOTSOURCE=mmc-boot0 DISTRO=buildroot ./runme.sh
-            env SHALLOW=true BOOTSOURCE=mmc-boot1 DISTRO=buildroot ./runme.sh
-            env SHALLOW=true BOOTSOURCE=mmc-data DISTRO=debian ./runme.sh
-            env SHALLOW=true BOOTSOURCE=mmc-boot0 DISTRO=debian ./runme.sh
-            env SHALLOW=true BOOTSOURCE=mmc-boot1 DISTRO=debian ./runme.sh
+            export BR_MIRROR="http://ciserver.ci:8000/cimirror/buildroot_mirror"
+            env BR2_PRIMARY_SITE="$BR_MIRROR" SHALLOW=true BOOTSOURCE=mmc-data DISTRO=buildroot ./runme.sh
+            env BR2_PRIMARY_SITE="$BR_MIRROR" SHALLOW=true BOOTSOURCE=mmc-boot0 DISTRO=buildroot ./runme.sh
+            env BR2_PRIMARY_SITE="$BR_MIRROR" SHALLOW=true BOOTSOURCE=mmc-boot1 DISTRO=buildroot ./runme.sh
+            env BR2_PRIMARY_SITE="$BR_MIRROR" SHALLOW=true BOOTSOURCE=mmc-data DISTRO=debian ./runme.sh
+            env BR2_PRIMARY_SITE="$BR_MIRROR" SHALLOW=true BOOTSOURCE=mmc-boot0 DISTRO=debian ./runme.sh
+            env BR2_PRIMARY_SITE="$BR_MIRROR" SHALLOW=true BOOTSOURCE=mmc-boot1 DISTRO=debian ./runme.sh
 
       - name: Select artifacts for publishing
         shell: bash -e {0}
