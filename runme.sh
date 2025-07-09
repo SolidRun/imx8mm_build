@@ -26,7 +26,7 @@ for i in $COMPONENTS; do
 			git clone https://github.com/SolidRun/linux-stable.git
 			mv -i linux-stable linux-imx
 		else
-			git clone https://source.codeaurora.org/external/imx/$i
+			git clone https://github.com/nxp-imx/$i
 		fi
 
 		cd $i
