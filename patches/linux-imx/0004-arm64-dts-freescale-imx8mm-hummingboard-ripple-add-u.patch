@@ -1,0 +1,133 @@
+From cce191c3cbbe53a9a67caaf72a678b24c7b9b53c Mon Sep 17 00:00:00 2001
+From: Josua Mayer <josua@solid-run.com>
+Date: Mon, 29 Sep 2025 17:30:55 +0200
+Subject: [PATCH 4/4] arm64: dts: freescale: imx8mm-hummingboard-ripple: add
+ usb vbus controls
+
+Add descriptions for the usb power regulators on HummingBoard Ripple.
+
+One supplies powers just a type-a connector, while the other powers both
+a usb hub and a type-a connector.
+
+Also add description for the usb hub including its reset signal.
+
+Signed-off-by: Josua Mayer <josua@solid-run.com>
+---
+ .../freescale/imx8mm-hummingboard-ripple.dts  | 74 ++++++++++++++++++-
+ 1 file changed, 73 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/freescale/imx8mm-hummingboard-ripple.dts b/arch/arm64/boot/dts/freescale/imx8mm-hummingboard-ripple.dts
+index 29e1908b4443..bb14631eb2e1 100644
+--- a/arch/arm64/boot/dts/freescale/imx8mm-hummingboard-ripple.dts
++++ b/arch/arm64/boot/dts/freescale/imx8mm-hummingboard-ripple.dts
+@@ -90,6 +90,35 @@ vmmc: regulator-mmc {
+ 		gpio = <&gpio2 19 GPIO_ACTIVE_HIGH>;
+ 		startup-delay-us = <250>;
+ 	};
++
++	vbus1: regulator-vbus-1 {
++		compatible = "regulator-fixed";
++		regulator-name = "vbus1";
++		gpio = <&gpio2 11 GPIO_ACTIVE_HIGH>;
++		enable-active-high;
++		pinctrl-names = "default";
++		pinctrl-0 = <&vbus1_pins>;
++		regulator-min-microvolt = <5000000>;
++		regulator-max-microvolt = <5000000>;
++	};
++
++	vbus2: regulator-vbus-2 {
++		compatible = "regulator-fixed";
++		regulator-name = "vbus2";
++		gpio = <&gpio4 21 GPIO_ACTIVE_HIGH>;
++		enable-active-high;
++		pinctrl-names = "default";
++		pinctrl-0 = <&vbus2_pins>;
++		regulator-min-microvolt = <5000000>;
++		regulator-max-microvolt = <5000000>;
++	};
++
++	v_1_2: regulator-1-2 {
++		compatible = "regulator-fixed";
++		regulator-name = "1v2";
++		regulator-min-microvolt = <1200000>;
++		regulator-max-microvolt = <1200000>;
++	};
+ };
+ 
+ &gpio2 {
+@@ -194,6 +223,12 @@ MX8MM_IOMUXC_SD2_WP_GPIO2_IO20		0x0
+ 		>;
+ 	};
+ 
++	usb_hub_pins: usb-hub-pins {
++		fsl,pins = <
++			MX8MM_IOMUXC_SAI3_RXD_GPIO4_IO30	0x0
++		>;
++	};
++
+ 	usdhc2_pins: usdhc2-pins {
+ 		fsl,pins = <
+ 			MX8MM_IOMUXC_SD2_CLK_USDHC2_CLK		0x190
+@@ -233,6 +268,18 @@ MX8MM_IOMUXC_SD2_CD_B_USDHC2_CD_B	0x0
+ 		>;
+ 	};
+ 
++	vbus1_pins: vbus-1-pins {
++		fsl,pins = <
++			MX8MM_IOMUXC_SD1_STROBE_GPIO2_IO11	0x20
++		>;
++	};
++
++	vbus2_pins: vbus-2-pins {
++		fsl,pins = <
++			MX8MM_IOMUXC_SAI2_RXFS_GPIO4_IO21	0x20
++		>;
++	};
++
+ 	vmmc_pins: vmmc-pins {
+ 		fsl,pins = <
+ 			MX8MM_IOMUXC_SD2_RESET_B_GPIO2_IO19	0x41
+@@ -256,13 +303,38 @@ dsim_to_adv7535: endpoint {
+ };
+ 
+ &usbotg1 {
+-	status = "okay";
+ 	dr_mode = "host";
++	vbus-supply = <&vbus2>;
++	status = "okay";
+ };
+ 
+ &usbotg2 {
+ 	status = "okay";
+ 	dr_mode = "host";
++	vbus-supply = <&vbus1>;
++	#address-cells = <1>;
++	#size-cells = <0>;
++	pinctrl-names = "default";
++	pinctrl-0 = <&usb_hub_pins>;
++
++	hub_2_0: hub@1 {
++		compatible = "usb4b4,6502";
++		reg = <1>;
++		peer-hub = <&hub_3_0>;
++		reset-gpios = <&gpio4 30 GPIO_ACTIVE_LOW>;
++		vdd-supply = <&v_1_2>;
++		vdd2-supply = <&v_3_3>;
++	};
++
++	/* this device is not visible because host supports 2.0 only */
++	hub_3_0: hub@2 {
++		compatible = "usb4b4,6500";
++		reg = <2>;
++		peer-hub = <&hub_2_0>;
++		reset-gpios = <&gpio4 30 GPIO_ACTIVE_LOW>;
++		vdd-supply = <&v_1_2>;
++		vdd2-supply = <&v_3_3>;
++	};
+ };
+ 
+ &usdhc2 {
+-- 
+2.51.0
+
