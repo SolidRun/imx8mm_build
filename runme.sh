@@ -1,15 +1,27 @@
 #!/bin/bash
-
 ###############################################################################
 # General configurations
 ###############################################################################
 
-declare -A GIT_REL
+declare -A GIT_REL GIT_COMMIT GIT_URL
 GIT_REL[imx-atf]=lf-6.6.36-2.1.0
-GIT_REL[uboot-imx]=lf-6.6.52-2.2.0
-GIT_REL[linux-imx]=lf-6.6.52-2.2.0
+GIT_URL[imx-atf]=https://github.com/nxp-imx/imx-atf.git
+GIT_REL[uboot-imx]=lf-6.6.52-2.2.0-sr-imx8
+GIT_COMMIT[uboot-imx]=9b3315107afbd588392421da710f8a6339336475
+GIT_URL[uboot-imx]=https://github.com/SolidRun/u-boot.git
+GIT_REL[linux-imx]=lf-6.6-sr-imx8
+GIT_COMMIT[linux-imx]=6e5a65bea633a417e108e7cd2cefb4273c770029
+GIT_URL[linux-imx]=https://github.com/SolidRun/linux-stable.git
 GIT_REL[imx-mkimage]=lf-6.6.52-2.2.0
+GIT_URL[imx-mkimage]=https://github.com/nxp-imx/imx-mkimage.git
+GIT_REL[imx-optee-os]=lf-6.6.23-2.0.0
+GIT_URL[imx-optee-os]=https://github.com/nxp-imx/imx-optee-os.git
 PKG_VER[firmware-imx]=8.26-d4c33ab
+GIT_REL[mfgtools]=uuu_1.4.77
+GIT_URL[mfgtools]=https://github.com/NXPmicro/mfgtools.git
+GIT_REL[ftpm]=master
+GIT_COMMIT[ftpm]=af2185656b0c47afc87b76fa89283bdf170e2759
+GIT_URL[ftpm]=https://github.com/Microsoft/MSRSec.git
 
 # Distribution for rootfs
 # - buildroot
@@ -32,6 +44,18 @@ PKG_VER[firmware-imx]=8.26-d4c33ab
 # - mmc-boot0 (eMMC Partition boot0)
 # - mmc-boot1 (eMMC Partition boot1)
 : ${BOOTSOURCE:=mmc-data}
+
+# optee-os secure storage on emmc rpmb
+# requires protected hardware-unique-key implemetation:
+# - tee_otp_get_hw_unique_key
+# Implemented by optee-os imx caam driver.
+: ${OPTEE_STORAGE_PRIVATE_RPMB:=true}
+# optee-os secure storage with insecure real-world fs
+# requires monotonic counter implementation to be secure:
+# - nv_counter_get_ree_fs
+# - nv_counter_incr_ree_fs_to
+# Not implemented.
+: ${OPTEE_STORAGE_PRIVATE_REE:=false}
 
 ROOTDIR=`pwd`
 
@@ -71,7 +95,7 @@ fi
 ###############################################################################
 
 cd $ROOTDIR
-COMPONENTS="imx-atf uboot-imx linux-imx imx-mkimage"
+COMPONENTS="imx-atf uboot-imx linux-imx imx-mkimage imx-optee-os ftpm mfgtools"
 mkdir -p build
 mkdir -p images/tmp/
 for i in $COMPONENTS; do
@@ -79,24 +103,18 @@ for i in $COMPONENTS; do
 		cd $ROOTDIR/build/
 
 		CHECKOUT=${GIT_REL["$i"]}
-		git clone ${SHALLOW_FLAG} https://github.com/nxp-imx/$i -b $CHECKOUT
+		git clone ${SHALLOW_FLAG} ${GIT_URL["$i"]} -b ${GIT_REL["$i"]} $i
 		cd $i
+
+		if [ -n "${GIT_COMMIT[$i]}" ]; then
+			git reset --hard ${GIT_COMMIT["$i"]}
+		fi
+
 		if [[ -d $ROOTDIR/patches/$i/ ]]; then
 			git am $ROOTDIR/patches/$i/*.patch
 		fi
 	fi
 done
-
-if [[ ! -d $ROOTDIR/build/mfgtools ]]; then
-	cd $ROOTDIR/build
-	git clone https://github.com/NXPmicro/mfgtools.git -b uuu_1.4.77
-	cd $ROOTDIR/build/mfgtools
-	if [[ -d $ROOTDIR/patches/mfgtools/ ]]; then
-		git am ../../patches/mfgtools/*.patch
-	fi
-	cmake .
-	make
-fi
 
 if [[ ! -d $ROOTDIR/build/firmware ]]; then
 	cd $ROOTDIR/build/
@@ -120,6 +138,106 @@ fi
 cd $ROOTDIR/build/firmware
 cp -v $(find . | awk '/ddr4_.mem|lpddr4_.*train|hdmi_imx8|dp_imx8/' ORS=" ") ${ROOTDIR}/build/imx-mkimage/iMX8M/
 
+
+###############################################################################
+# Building OPTEE
+###############################################################################
+build_optee_ftpm() {
+	local DEVKIT="$1"
+	local CROSS_COMPILE=$2
+	local TEE_TA_LOG_LEVEL=2
+
+	cd $ROOTDIR/build/ftpm/TAs/optee_ta
+	make -j1 \
+		CFG_FTPM_USE_WOLF=y \
+		TA_CPU=cortex-a53 \
+		TA_CROSS_COMPILE=$CROSS_COMPILE \
+		TA_DEV_KIT_DIR="$DEVKIT" \
+		CFG_TEE_TA_LOG_LEVEL=$TEE_TA_LOG_LEVEL \
+		ftpm
+
+	cp -v out/*/*.ta $ROOTDIR/images/tmp/optee/
+}
+
+do_build_opteeos() {
+	local PLATFORM=imx-mx8mmevk
+	local TEE_CORE_LOG_LEVEL=2
+
+	rm -rf $ROOTDIR/images/tmp/optee
+	mkdir -p $ROOTDIR/images/tmp/optee
+
+	# build optee devkit
+	cd $ROOTDIR/build/imx-optee-os/
+	rm -rf out
+	make -j${JOBS} \
+		ARCH=arm \
+		PLATFORM=${PLATFORM} \
+		CROSS_COMPILE64=${CROSS_COMPILE} \
+		CROSS_COMPILE32=${CROSS_COMPILE} \
+		CFG_ARM64_core=y \
+		ta_dev_kit
+
+	# build external TAs
+	build_optee_ftpm $ROOTDIR/build/imx-optee-os/out/arm-plat-imx/export-ta_arm64 ${CROSS_COMPILE}
+
+	# build optee os
+	cd $ROOTDIR/build/imx-optee-os/
+
+	# REE_FS OPTIONS:
+	# - CFG_RPMB_FS:
+	#   Enable or disable RPMB Filesystem Feature.
+	# - CFG_RPMB_WRITE_KEY:
+	#   Disabled by default to avoid accidental programming of key,
+	#   enable if optee-os shall use rpmb for secure storage.
+	#   Only required during first use.
+	if [ "x$OPTEE_STORAGE_PRIVATE_REE" = "xtrue" ]; then
+		REE_FS="CFG_REE_FS=y"
+	else
+		REE_FS="CFG_REE_FS=n"
+	fi
+
+	# RPMB_FS OPTIONS:
+	# - CFG_RPMB_FS:
+	#   Enable or disable RPMB Filesystem Feature.
+	# - CFG_RPMB_FS_DEV_ID:
+	#   Set MMC device ID of eMMC.
+	# - CFG_RPMB_WRITE_KEY:
+	#   Disabled by default to avoid accidental programming of key,
+	#   enable if optee-os shall use rpmb for secure storage.
+	#   Only required during first use.
+	if [ "x$OPTEE_STORAGE_PRIVATE_RPMB" = "xtrue" ]; then
+		RPMB_FS="CFG_RPMB_FS=y CFG_RPMB_FS_DEV_ID=2 CFG_RPMB_WRITE_KEY=n"
+	else
+		RPMB_FS="CFG_RPMB_FS=n"
+	fi
+
+	# In-Tree Early TA's
+	# - avb: for optee_rpmb u-boot command
+	IN_TREE_EARLY_TAS="avb/023f8f1a-292a-432b-8fc4-de8471358067"
+
+	# External Early TA's
+	# - fTPM
+	EXTERNAL_EARLY_TAS="$ROOTDIR/build/ftpm/TAs/optee_ta/out/fTPM/bc50d971-d4c9-42c4-82cb-343fb7f37896.stripped.elf"
+
+	make -j${JOBS} \
+		ARCH=arm \
+		PLATFORM=$PLATFORM \
+		CROSS_COMPILE64=${CROSS_COMPILE} \
+		CROSS_COMPILE32=${CROSS_COMPILE} \
+		CFG_ARM64_core=y \
+		CFG_TEE_CORE_LOG_LEVEL=$TEE_CORE_LOG_LEVEL \
+		$REE_FS \
+		$RPMB_FS \
+		CFG_IN_TREE_EARLY_TAS="$IN_TREE_EARLY_TAS" \
+		CFG_EARLY_TA=y \
+		EARLY_TA_PATHS="$EXTERNAL_EARLY_TAS"
+
+	cp out/arm-plat-imx/core/tee-pager_v2.bin $ROOTDIR/images/tmp/optee
+}
+
+echo "Building optee-os"
+do_build_opteeos
+
 ###############################################################################
 # Building Bootloader
 ###############################################################################
@@ -130,7 +248,8 @@ echo "================================="
 # Build ATF
 do_build_atf() {
 	cd $ROOTDIR/build/imx-atf
-	make -j$(nproc) PLAT=imx8mm bl31
+	rm -rf build
+	make -j$(nproc) PLAT=imx8mm SPD=opteed bl31
 	cp -v build/imx8mm/release/bl31.bin $ROOTDIR/build/imx-mkimage/iMX8M/
 }
 echo "*** Building ATF"
@@ -181,7 +300,7 @@ do_build_imximage() {
 	unset ARCH CROSS_COMPILE
 	cd $ROOTDIR/build/imx-mkimage
 	make clean
-	make SOC=iMX8MM dtbs=imx8mm-hummingboard-ripple.dtb BL31=$ROOTDIR/build/imx-atf/build/imx8mm/release/bl31.bin flash_evk
+	make SOC=iMX8MM dtbs=imx8mm-hummingboard-ripple.dtb supp_dtbs="imx8mm-hummingboard-ripple.dtb" BL31=$ROOTDIR/build/imx-atf/build/imx8mm/release/bl31.bin TEE=$ROOTDIR/images/tmp/optee/tee-pager_v2.bin flash_evk
 	mkdir -p $ROOTDIR/images
 	cp -v iMX8M/flash.bin $ROOTDIR/images/u-boot-${BOOTSOURCE}-${REPO_PREFIX}.bin
 }
@@ -194,36 +313,30 @@ export ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
 echo "================================="
 echo "*** Building Linux kernel..."
 echo "================================="
-cd $ROOTDIR/build/linux-imx
-./scripts/kconfig/merge_config.sh arch/arm64/configs/imx_v8_defconfig $ROOTDIR/configs/kernel.extra
-make olddefconfig
-# make menuconfig
-make -j$(nproc) Image Image.gz dtbs modules
-make savedefconfig
-KRELEASE=`make kernelrelease`
-rm -rf $ROOTDIR/images/tmp/linux
-mkdir -p $ROOTDIR/images/tmp/linux
-mkdir -p $ROOTDIR/images/tmp/linux/boot/freescale
-make -j$(nproc) INSTALL_MOD_PATH=$ROOTDIR/images/tmp/linux/usr INSTALL_MOD_STRIP=1 modules_install
-cp $ROOTDIR/build/linux-imx/System.map $ROOTDIR/images/tmp/linux/boot
-cp $ROOTDIR/build/linux-imx/arch/arm64/boot/Image $ROOTDIR/images/tmp/linux/boot
-cp $ROOTDIR/build/linux-imx/arch/arm64/boot/Image.gz $ROOTDIR/images/tmp/linux/boot
-cp $ROOTDIR/build/linux-imx/arch/arm64/boot/dts/freescale/imx8mm-evk.dtb $ROOTDIR/images/tmp/linux/boot/freescale/
 
-# TODO: can build external modules here
-
-# regenerate modules dependencies
-depmod -b "${ROOTDIR}/images/tmp/linux/usr" -F "${ROOTDIR}/images/tmp/linux/boot/System.map" ${KRELEASE}
-
-function pkg_kernel() {
-# package kernel individually
-	rm -f "${ROOTDIR}/images/linux/linux.tar*"
-	cd "${ROOTDIR}/images/tmp/linux"; tar -c --owner=root:0 -f "${ROOTDIR}/images/linux-${REPO_PREFIX}.tar" boot/* usr/lib/modules/*; cd "${ROOTDIR}"
+function build_kernel() {
+	# compile kernel
+	cd $ROOTDIR/build/linux-imx
+	./scripts/kconfig/merge_config.sh arch/arm64/configs/imx_v8_defconfig $ROOTDIR/configs/kernel.extra
+	make olddefconfig
+	# make menuconfig
+	make -j$(nproc) Image Image.gz dtbs modules
+	make savedefconfig
+	KRELEASE=`make kernelrelease`
+	rm -rf $ROOTDIR/images/tmp/linux
+	mkdir -p $ROOTDIR/images/tmp/linux
+	mkdir -p $ROOTDIR/images/tmp/linux/boot/freescale
+	make -j$(nproc) INSTALL_MOD_PATH=$ROOTDIR/images/tmp/linux/usr INSTALL_MOD_STRIP=1 modules_install
+	cp $ROOTDIR/build/linux-imx/System.map $ROOTDIR/images/tmp/linux/boot
+	cp $ROOTDIR/build/linux-imx/arch/arm64/boot/Image $ROOTDIR/images/tmp/linux/boot
+	cp $ROOTDIR/build/linux-imx/arch/arm64/boot/Image.gz $ROOTDIR/images/tmp/linux/boot
+	for prefix in hummingboard; do
+		find $ROOTDIR/build/linux-imx/arch/arm64/boot/dts/freescale/ -iname "imx8mm-${prefix}*.dtb*" -exec cp {} $ROOTDIR/images/tmp/linux/boot/freescale/ \;
+	done
 }
-pkg_kernel
 
-function pkg_kernel_headers() {
-	# Build external Linux Headers package for compiling modules
+function build_kernel_headers() {
+	# Generate external linux headers for compiling modules
 	cd "${ROOTDIR}/build/linux-imx"
 	rm -rf "${ROOTDIR}/images/tmp/linux-headers"
 	mkdir -p ${ROOTDIR}/images/tmp/linux-headers
@@ -232,14 +345,36 @@ function pkg_kernel_headers() {
 	find arch/arm64/include include scripts -type f >> $tempfile
 	tar -c -f - -T $tempfile | tar -C "${ROOTDIR}/images/tmp/linux-headers" -xf -
 	cd "${ROOTDIR}/build/linux-imx"
-	find arch/arm64/include .config Module.symvers include scripts -type f > $tempfile
+	find arch/arm64/include .config Module.symvers include scripts System.map -type f > $tempfile
 	tar -c -f - -T $tempfile | tar -C "${ROOTDIR}/images/tmp/linux-headers" -xf -
 	rm -f $tempfile
 	unset tempfile
+}
+
+function pkg_kernel_headers() {
+	# package external linux headers
 	cd "${ROOTDIR}/images/tmp/linux-headers"
 	tar cpf "${ROOTDIR}/images/linux-headers-${REPO_PREFIX}.tar" *
 }
+
+function pkg_kernel() {
+	# package kernel and modules
+	rm -f "${ROOTDIR}/images/linux/linux.tar*"
+	cd "${ROOTDIR}/images/tmp/linux"; tar -c --owner=root:0 -f "${ROOTDIR}/images/linux-${REPO_PREFIX}.tar" boot/* usr/lib/modules/*; cd "${ROOTDIR}"
+}
+
+# compile kernel
+build_kernel
+
+# build external modules
+build_kernel_headers
+
+# regenerate modules dependencies
+depmod -b "${ROOTDIR}/images/tmp/linux/usr" -F "${ROOTDIR}/images/tmp/linux/boot/System.map" ${KRELEASE}
+
+# generate packages
 pkg_kernel_headers
+pkg_kernel
 
 ###############################################################################
 # Building FS Buildroot/Debian
@@ -260,7 +395,7 @@ do_build_buildroot() {
 	make ${BUILDROOT_DEFCONFIG} BR2_EXTERNAL=${ROOTDIR}/packages/buildroot-external/nvmemfuse
 	make savedefconfig BR2_DEFCONFIG="${ROOTDIR}/build/buildroot/defconfig"
 	make -j${PARALLEL}
-	cp $ROOTDIR/build/buildroot/output/images/rootfs.ext2 $ROOTDIR/images/tmp/rootfs.ext4
+	cp -L --sparse=always $ROOTDIR/build/buildroot/output/images/rootfs.ext2 $ROOTDIR/images/tmp/rootfs.ext4
 }
 
 do_build_debian() {
@@ -341,7 +476,7 @@ EOF
 	fi
 
 	# export final rootfs for next steps
-	cp rootfs.e2.orig "${ROOTDIR}/images/tmp/rootfs.ext4"
+	cp --sparse=always rootfs.e2.orig "${ROOTDIR}/images/tmp/rootfs.ext4"
 
 	# apply overlay (configuration + data files only - can't "chmod +x")
 	find "${ROOTDIR}/overlay/${DISTRO}" -type f -printf "%P\n" | e2cp -G 0 -O 0 -s "${ROOTDIR}/overlay/${DISTRO}" -d "${ROOTDIR}/images/tmp/rootfs.ext4:" -a
@@ -366,7 +501,7 @@ LABEL default
 	MENU LABEL default
 	LINUX ../Image
 	FDTDIR ../
-	APPEND console=\${console} root=PARTUUID=$PARTUUID rw rootwait \${bootargs}
+	APPEND console=\${console} earlycon=ec_imx6q,0x30890000,115200 root=PARTUUID=$PARTUUID rw rootwait \${bootargs}
 EOF
 }
 
@@ -393,7 +528,7 @@ IMAGE_BOOTPART_START=$((4*1024*1024)) # start first partition after 4MB mark (re
 IMAGE_BOOTPART_SIZE=$((60*1024*1024)) # bootpart size = 60MiB
 IMAGE_BOOTPART_END=$((IMAGE_BOOTPART_START+IMAGE_BOOTPART_SIZE-1))
 IMAGE_ROOTPART_START=$((IMAGE_BOOTPART_END+1))
-IMAGE_ROOTPART_SIZE=`stat -c "%s" tmp/rootfs.ext4`
+IMAGE_ROOTPART_SIZE=`stat -c "%s" ${ROOTFS_IMG}`
 IMAGE_ROOTPART_END=$((IMAGE_ROOTPART_START+IMAGE_ROOTPART_SIZE-1))
 IMAGE_SIZE=$((IMAGE_ROOTPART_END+1))
 
@@ -410,9 +545,9 @@ do_generate_extlinux ${ROOTDIR}/images/extlinux.conf ${IMG} 2
 
 mmd -i tmp/part1.fat32 ::/extlinux
 mcopy -i tmp/part1.fat32 $ROOTDIR/images/extlinux.conf ::/extlinux/extlinux.conf
-mcopy -i tmp/part1.fat32 $ROOTDIR/build/linux-imx/arch/arm64/boot/Image ::/Image
+mcopy -i tmp/part1.fat32 $ROOTDIR/images/tmp/linux/boot/Image ::/Image
 mmd -i tmp/part1.fat32 ::/freescale
-mcopy -s -i tmp/part1.fat32 $ROOTDIR/build/linux-imx/arch/arm64/boot/dts/freescale/*imx8mm*.dtb ::/freescale
+mcopy -s -i tmp/part1.fat32 $ROOTDIR/images/tmp/linux/boot/freescale/*.dtb* ::/freescale
 
 # copy boot and rootfs partitions to image
 dd if=tmp/part1.fat32 of=${IMG} bs=1M seek=4 conv=notrunc
