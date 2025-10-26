@@ -10,7 +10,7 @@ GIT_REL[uboot-imx]=lf-6.6.52-2.2.0-sr-imx8
 GIT_COMMIT[uboot-imx]=9b3315107afbd588392421da710f8a6339336475
 GIT_URL[uboot-imx]=https://github.com/SolidRun/u-boot.git
 GIT_REL[linux-imx]=lf-6.6-sr-imx8
-GIT_COMMIT[linux-imx]=6e5a65bea633a417e108e7cd2cefb4273c770029
+GIT_COMMIT[linux-imx]=009834fcd03cf28e9e0282197776e0e35dff751a
 GIT_URL[linux-imx]=https://github.com/SolidRun/linux-stable.git
 GIT_REL[imx-mkimage]=lf-6.6.52-2.2.0
 GIT_URL[imx-mkimage]=https://github.com/nxp-imx/imx-mkimage.git
@@ -320,6 +320,10 @@ function build_kernel() {
 	./scripts/kconfig/merge_config.sh arch/arm64/configs/imx_v8_defconfig $ROOTDIR/configs/kernel.extra
 	make olddefconfig
 	# make menuconfig
+	CHECK_DTBS=(
+               freescale/imx8mm-hummingboard-ripple.dtb
+	)
+	make -j$(nproc) CHECK_DTBS=1 ${CHECK_DTBS[@]}
 	make -j$(nproc) Image Image.gz dtbs modules
 	make savedefconfig
 	KRELEASE=`make kernelrelease`
